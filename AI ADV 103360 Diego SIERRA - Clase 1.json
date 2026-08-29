@@ -1,0 +1,277 @@
+{
+  "name": "AI ADV 103360 Diego SIERRA - Clase 1",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Eres un asistente que nos ayuda a gestionar las reservas de menus para cada dia cada alumno, informar los menus por cada colegio e informar el saldo adeudado de cada alumno\nEl valor de cada menu esta dado en la planilla de Menus\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -64,
+        96
+      ],
+      "id": "7c0c03d9-197b-4735-8ad7-d22c6935670e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        304
+      ],
+      "id": "a666a232-07f0-4160-8d67-987255e6c610",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "YZCwUVO2FCQ01oht",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -64,
+        304
+      ],
+      "id": "e6615947-cc82-47e4-89fe-639aa2ab21e4",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "lista de valores vigentes , descripcion del menu y categoria de cada menu . disponible por cada colegio . Devuelve el valor , la descripcion. Usa esta planilla de menus siempre , sin excepcoio, para informar el valor de un menu disponible en un colegio .\nLa categoria del menu puede ser exclusivamente una de estas cuatro: \"proteica\", \"vegana\" , \"celiacos\", \"variada\"",
+        "documentId": {
+          "__rl": true,
+          "value": "1m7J5zBwWhAL2WiWh7qtJXo54Et1Us9ICeIKTJGmxeFY",
+          "mode": "list",
+          "cachedResultName": "MenusColegio 2026 v1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1m7J5zBwWhAL2WiWh7qtJXo54Et1Us9ICeIKTJGmxeFY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Vigente",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1m7J5zBwWhAL2WiWh7qtJXo54Et1Us9ICeIKTJGmxeFY/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        96,
+        304
+      ],
+      "id": "d250af0f-5df4-40c8-b2ba-31ace756c525",
+      "name": "Consultar Datos Menus - Menu Diarios - Colegios Alumnos",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "N50K7rqrXTpQO4zF",
+          "name": "Google Sheets Credencia Planilla Menus Colegios Alumnos"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseMode": "streaming"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -288,
+        96
+      ],
+      "id": "3423f1af-40d2-403b-a932-09e06a50ade6",
+      "name": "Chat consulta desde los Padres",
+      "webhookId": "75076e58-c0a6-41a7-809d-d1c5206cbf91"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "476239c0-931c-4f8d-a613-1cd8c0b2f747",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        528,
+        96
+      ],
+      "id": "ab1bdf41-e761-4175-9f00-16fd9f025772",
+      "name": "Armar la respuesta final"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1m7J5zBwWhAL2WiWh7qtJXo54Et1Us9ICeIKTJGmxeFY",
+          "mode": "list",
+          "cachedResultName": "MenusColegio 2026 v1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1m7J5zBwWhAL2WiWh7qtJXo54Et1Us9ICeIKTJGmxeFY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1090509220,
+          "mode": "list",
+          "cachedResultName": "consultasRecibidas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1m7J5zBwWhAL2WiWh7qtJXo54Et1Us9ICeIKTJGmxeFY/edit#gid=1090509220"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Respuesta": "={{ $json.output }}",
+            "Consulta": "={{ $('Chat consulta desde los Padres').item.json.chatInput }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Consulta",
+              "displayName": "Consulta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Respuesta",
+              "displayName": "Respuesta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        288,
+        -64
+      ],
+      "id": "c77b8c12-0b36-4e66-94d8-e30ec0583d19",
+      "name": "OBSV: Registrar consulta recibida",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "N50K7rqrXTpQO4zF",
+          "name": "Google Sheets Credencia Planilla Menus Colegios Alumnos"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Datos Menus - Menu Diarios - Colegios Alumnos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat consulta desde los Padres": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "OBSV: Registrar consulta recibida",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Armar la respuesta final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OBSV: Registrar consulta recibida": {
+      "main": [
+        [
+          {
+            "node": "Armar la respuesta final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a8f27af8-3e31-4c82-bde7-fd22b4d72896",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3b4bc8be08160255577109a8a53bea867b5651971d4b942b9dddc7c3ec28f8de"
+  },
+  "nodeGroups": [],
+  "id": "OH0WqrADJ4RIXI9J",
+  "tags": []
+}
