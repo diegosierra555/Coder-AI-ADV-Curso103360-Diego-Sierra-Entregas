@@ -1,0 +1,57 @@
+{
+  "name": "SubWrkf Clasificar Contacto",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// WORKER - Calificar Contacto\n// Tarea atomica y deterministica: no usa IA, no llama APIs, no escribe en ningun lado.\n// Contrato de salida (siempre el mismo): { status: 'ok' | 'error', data, error }\n\nconst DOMINIOS_PERSONALES = ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com', 'yahoo.com.ar', 'icloud.com', 'live.com', 'proton.me', 'protonmail.com'];\nconst PALABRAS_URGENCIA = ['urgente', 'urgencia', 'cuanto antes', 'esta semana', 'ya mismo', 'inmediato', 'para hoy', 'lo antes posible'];\n\nconst salida = [];\n\nfor (const item of $input.all()) {\n  // El Manager manda { lead: {...} }. Si llegara plano, tambien funciona.\n  const contacto = item.json.contacto ?? item.json;\n  const email = String(contacto.email ?? '').trim().toLowerCase();\n\n  // El Worker no muere: devuelve status 'error' y deja que el Manager decida.\n  if (!email.includes('@')) {\n    salida.push({ json: {\n      status: 'error',\n      data: null,\n      error: { code: 'CONTACTO_SIN_EMAIL', mensaje: 'El Worker necesita un email valido para calificar el CONTACTO.' }\n    }});\n    continue;\n  }\n\n  const motivos = [];\n  let score = 0;\n\n  const dominio = email.split('@')[1] ?? '';\n  const esCorporativo = dominio !== '' && !DOMINIOS_PERSONALES.includes(dominio);\n  if (esCorporativo) { score += 25; motivos.push('email corporativo (+25)'); }\n\n  if (String(contacto.familia ?? '').trim() !== '') { score += 30; motivos.push('familia declarada (+30)'); }\n\n\n\n  const texto = String(contacto.mensaje ?? '').toLowerCase();\n  if (PALABRAS_URGENCIA.some(function (p) { return texto.includes(p); })) { score += 35; motivos.push('senal de urgencia en el mensaje (+35)'); }\n\n  score = Math.min(score, 100);\n\n  let temperatura, owner, sla_horas;\n  if (score >= 70) { temperatura = 'HOT'; owner = 'ventas-senior'; sla_horas = 2; }\n  else if (score >= 40) { temperatura = 'WARM'; owner = 'ventas'; sla_horas = 24; }\n  else { temperatura = 'COLD'; owner = 'nurturing'; sla_horas = 72; }\n\n  salida.push({ json: {\n    status: 'ok',\n    error: null,\n    data: {\n      score: score,\n      temperatura: temperatura,\n      owner: owner,\n      sla_horas: sla_horas,\n      email_corporativo: esCorporativo,\n      motivos: motivos\n    }\n  }});\n}\n\nreturn salida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        -384
+      ],
+      "id": "f868afc8-0e48-45de-9eb0-75a73c7b2d97",
+      "name": "Clasificar Nuevo Contacto"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "c3f0fbf6-7dd6-4135-aaf1-1ae1f2657e73",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        1440,
+        -384
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Clasificar Nuevo Contacto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "569268f7-b17a-4d02-9c6c-5a0f48eb2ba7",
+  "meta": {
+    "instanceId": "3b4bc8be08160255577109a8a53bea867b5651971d4b942b9dddc7c3ec28f8de"
+  },
+  "nodeGroups": [],
+  "id": "EfN5OefegnUfo86k",
+  "tags": []
+}
