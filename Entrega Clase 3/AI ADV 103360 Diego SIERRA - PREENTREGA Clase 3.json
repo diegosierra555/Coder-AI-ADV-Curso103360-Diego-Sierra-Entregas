@@ -1,0 +1,603 @@
+{
+  "name": "AI ADV 103360 Diego SIERRA - PREENTREGA Clase 3",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "asg-summary",
+              "name": "last_summary",
+              "value": "={{ $json.Resumen_Consolidado }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-record",
+              "name": "airtable_record_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-chatinput-a",
+              "name": "chatInput",
+              "value": "={{ $('Mensaje entrante').item.json.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-session-a",
+              "name": "sessionId",
+              "value": "={{ $('Mensaje entrante').item.json.sessionId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "508f9a44-5f24-438e-a03d-011888e8adb9",
+      "name": "Preparar contexto previo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": "groq/compound-mini",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "id": "cbc5c699-e468-4bc6-a5a8-99bf31071fc9",
+      "name": "Groq - Modelo principal",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        16,
+        384
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "LaTO2icP0NsWadrl",
+          "name": "Groq account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}"
+      },
+      "id": "0e2c9aa8-f1e0-47d2-a596-cc00fc6825e8",
+      "name": "Simple Memory (short-term)",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        384
+      ],
+      "notes": "Memoria de corto plazo: solo los ultimos 5 intercambios del hilo actual. La memoria de largo plazo vive en Airtable."
+    },
+    {
+      "parameters": {
+        "model": "groq/compound-mini",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "4c84c07b-9907-482c-9489-a8e2f2225912",
+      "name": "Groq - Modelo economico (8B)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        672,
+        384
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "LaTO2icP0NsWadrl",
+          "name": "Groq account 2"
+        }
+      },
+      "notes": "Modelo barato para condensar historial. El 70B nunca ve el chat completo."
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseMode": "responseNodes"
+        }
+      },
+      "id": "f21d18ef-450b-41fe-a7a7-94fcffeb91d0",
+      "name": "Mensaje entrante",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -880,
+        144
+      ],
+      "webhookId": "clase3-demo2-memoria",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "app8dJtJVdMDnbw9J",
+          "mode": "list",
+          "cachedResultName": "Memoria del Agente - Viandas Colegiales",
+          "cachedResultUrl": "https://airtable.com/app8dJtJVdMDnbw9J"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblLYdTMHUoPnHTdd",
+          "mode": "list",
+          "cachedResultName": "Conversaciones",
+          "cachedResultUrl": "https://airtable.com/app8dJtJVdMDnbw9J/tblLYdTMHUoPnHTdd"
+        },
+        "filterByFormula": "={ID_Sesion} = '{{ $json.sessionId }}'",
+        "options": {}
+      },
+      "id": "b3aeab6b-6a9e-4b56-81e0-2f4e4add9c20",
+      "name": "Buscar la sesion",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -656,
+        144
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "gFYxjnrYmAXBMHYr",
+          "name": "Airtable account"
+        }
+      },
+      "notes": "Filtra la base por el sessionId del Chat Trigger. alwaysOutputData=true para que el flujo siga aunque no haya registro (usuario nuevo)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-existe",
+              "leftValue": "={{ $json.ResumenConversa}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "78508d05-d401-4849-865c-61b6ee05511a",
+      "name": "Existe conversaciones anteriores con la famillia",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -416,
+        144
+      ],
+      "alwaysOutputData": true,
+      "notes": "TRUE: usuario que vuelve, inyectar contexto. FALSE: usuario nuevo, arrancar de cero."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "asg-summary-vacio",
+              "name": "last_summary",
+              "value": "SIN HISTORIAL PREVIO. Es la primera conversacion con este cliente.",
+              "type": "string"
+            },
+            {
+              "id": "asg-record-vacio",
+              "name": "airtable_record_id",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "asg-chatinput-b",
+              "name": "chatInput",
+              "value": "={{ $('Mensaje entrante').item.json.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "asg-session-b",
+              "name": "sessionId",
+              "value": "={{ $('Mensaje entrante').item.json.sessionId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "22c76951-c970-48fc-a796-4176bd98681a",
+      "name": "Conversa nueva - sin conexto anterior",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Mensaje entrante').item.json.chatInput }}",
+        "options": {
+          "systemMessage": "=Sos el asesor virtual de VC : Viandas Colegiales, una empresa familiar que prepara y vende viandas del almuerzo para alumnos en comedores de colegios . Existen menus a base proteinas, vegetarianos, para celiacos. Pueden incluir postres o un alfajor\n[INICIO DE CONTEXTO COMPARTIDO]\nEl contexto de la ultima charla con la familia es: {{ $json.last_summary }}\n[FIN DEL CONTEXTO COMPARTIDO]\n\nReglas:\n- Si el contexto indica SIN HISTORIAL PREVIO: presentate brevemente y atende la consulta desde cero.\n- Si hay contexto previo: retoma la conversacion con naturalidad. NO saludes como si fuera la primera vez. Menciona lo que ya hablaron (presupuesto, tipos de menu, horarios) solo si es relevante para el mensaje actual.\n- Respuestas en español rioplatense, maximo dos parrafos cortos.\n- Nunca inventes datos que no esten en el contexto ni en el mensaje del cliente."
+        }
+      },
+      "id": "6c9406ec-e131-411d-8783-57d7a19fb040",
+      "name": "AI Agente Asesor con Memoria",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        96,
+        144
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Sos un condensador de conversaciones . Analiza el siguiente intercambio y devolve UNICAMENTE un objeto JSON valido, sin texto adicional, sin backticks y sin explicaciones.\n\nFormato exacto:\n{\"asunto_principal\": \"tema central en una frase\", \"puntos_clave\": [\"hecho accionable 1\", \"hecho accionable 2\"], \"accion_requerida\": \"proximo paso concreto\"}\n\nContexto previo acumulado: {{ $('AI Agente Asesor con Memoria').item.json.last_summary || 'ninguno' }}\nMensaje del cliente: {{ $('Mensaje entrante').item.json.chatInput }}\nRespuesta del asesor: {{ $('AI Agente Asesor con Memoria').item.json.output }}\n\nRegla critica: guarda SOLO hechos accionables (presupuestos, medidas, plazos, decisiones). Ignora saludos y charla social. Maximo 3 puntos_clave.",
+        "hasOutputParser": true
+      },
+      "id": "7b6a0515-0b89-4105-8e30-b75165cbf3e8",
+      "name": "Resumen JSON",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        144
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "app8dJtJVdMDnbw9J",
+          "mode": "list",
+          "cachedResultName": "Memoria del Agente - Viandas Colegiales",
+          "cachedResultUrl": "https://airtable.com/app8dJtJVdMDnbw9J"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblLYdTMHUoPnHTdd",
+          "mode": "list",
+          "cachedResultName": "Conversaciones",
+          "cachedResultUrl": "https://airtable.com/app8dJtJVdMDnbw9J/tblLYdTMHUoPnHTdd"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID_Sesion": "={{ $('Chat de Respuesta').item.json.sessionId }}",
+            "fechaUltimoUpdate": "={{ $now }}",
+            "ResumenConversa": "={{ $json.output.asunto_principal }}",
+            "Status": "In progress",
+            "nextSteps": "={{ $json.output.accion_requerida }}",
+            "datosClave": "={{ $json.output.puntos_clave[0] }}"
+          },
+          "matchingColumns": [
+            "ID_Sesion"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "ID_Sesion",
+              "displayName": "ID_Sesion",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "fechaUltimoUpdate",
+              "displayName": "fechaUltimoUpdate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ResumenConversa",
+              "displayName": "ResumenConversa",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Todo",
+                  "value": "Todo"
+                },
+                {
+                  "name": "In progress",
+                  "value": "In progress"
+                },
+                {
+                  "name": "Done",
+                  "value": "Done"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "nextSteps",
+              "displayName": "nextSteps",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "datosClave",
+              "displayName": "datosClave",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d804c735-31e2-420f-9d68-12af33b2bab9",
+      "name": "Guardar memoria de la conversa",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        928,
+        144
+      ],
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "gFYxjnrYmAXBMHYr",
+          "name": "Airtable account"
+        }
+      },
+      "notes": "Upsert con matching por Session_ID: actualiza si existe, crea si no. Datos_Clave usa un parseo defensivo: si el 8B devuelve JSON sucio, guarda el texto crudo en vez de romper el nodo."
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"asunto_principal\":\"Opciones de menú para el hijo del cliente en el colegio Shakespeare\",\n  \"puntos_clave\":[\"Cliente solicita conocer los menús disponibles\",\"Asesor indica tres líneas: proteínas, vegetarianas y sin gluten, con opción de postre o alfajor\",\"Se ofrece proporcionar detalle de platos y precios si el cliente lo solicita\"],\n  \"accion_requerida\":\"Cliente debe solicitar detalle de platos y precios para decidir\"}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        352
+      ],
+      "id": "c7bd67b3-0cc9-4f6d-81cb-feb98630895a",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "id": "250cc587-ae68-4349-9b29-4367abb548d1",
+      "name": "Chat de Respuesta",
+      "type": "@n8n/n8n-nodes-langchain.chat",
+      "typeVersion": 1.3,
+      "position": [
+        496,
+        144
+      ],
+      "webhookId": "clase3-demo2-respuesta",
+      "notes": "El usuario ve esto, no la fila de Airtable. Corre ANTES del resumen y del guardado: la persistencia nunca debe demorar la respuesta."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Preparar contexto previo": {
+      "main": [
+        [
+          {
+            "node": "AI Agente Asesor con Memoria",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Modelo principal": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agente Asesor con Memoria",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory (short-term)": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agente Asesor con Memoria",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Modelo economico (8B)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Resumen JSON",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensaje entrante": {
+      "main": [
+        [
+          {
+            "node": "Buscar la sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar la sesion": {
+      "main": [
+        [
+          {
+            "node": "Existe conversaciones anteriores con la famillia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existe conversaciones anteriores con la famillia": {
+      "main": [
+        [
+          {
+            "node": "Preparar contexto previo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Conversa nueva - sin conexto anterior",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversa nueva - sin conexto anterior": {
+      "main": [
+        [
+          {
+            "node": "AI Agente Asesor con Memoria",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agente Asesor con Memoria": {
+      "main": [
+        [
+          {
+            "node": "Chat de Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen JSON": {
+      "main": [
+        [
+          {
+            "node": "Guardar memoria de la conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Resumen JSON",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat de Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Resumen JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5b48aac2-9089-4e20-8a7a-2d9383b752bb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3b4bc8be08160255577109a8a53bea867b5651971d4b942b9dddc7c3ec28f8de"
+  },
+  "nodeGroups": [],
+  "id": "9gsynhsRN0O7KAyE",
+  "tags": []
+}
